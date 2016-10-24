@@ -3,7 +3,9 @@ namespace slapper\entities;
 
 use pocketmine\entity\Human;
 use pocketmine\network\protocol\AddPlayerPacket;
+use pocketmine\network\protocol\RemoveEntityPacket;
 use pocketmine\network\protocol\PlayerListPacket;
+use pocketmine\level\particle\FloatingTextParticle;
 use pocketmine\Player;
 
 class SlapperWorldCounter extends Human {
@@ -77,12 +79,15 @@ class SlapperWorldCounter extends Human {
             $pk->eid = $this->getId();
             $player->dataPacket($pk);
             unset($this->hasSpawned[$player->getLoaderId()]);
-            //TODO: Remove FloatingTextParticle removal hack
-            $rp = new \ReflectionProperty(FloatingTextParticle::class, 'entityId');
-            $rp->setAccessible(true);
-            $pk1 = new RemoveEntityPacket();
-            $pk1->eid = $rp->getValue($this->ftp);
-            $player->dataPacket($pk1);
+			
+			if($this->ftp !== null){
+				//TODO: Remove FloatingTextParticle removal hack
+				$rp = new \ReflectionProperty(FloatingTextParticle::class, 'entityId');
+				$rp->setAccessible(true);
+				$pk1 = new RemoveEntityPacket();
+				$pk1->eid = $rp->getValue($this->ftp);
+				$player->dataPacket($pk1);
+			}
         }
     }
 }
