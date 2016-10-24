@@ -569,7 +569,7 @@ class Main extends PluginBase implements Listener
                         case "apawn":
                             $type = array_shift($args);
                             $spawn = true;
-                            $name = str_replace("{color}", "§", str_replace("{line}", "\n", trim(implode(" ", $args))));
+                            $name = str_replace("{color}", "ยง", str_replace("{line}", "\n", trim(implode(" ", $args))));
                             if ($type === null || $type === "" || $type === " ") {
                                 $sender->sendMessage($this->prefix . "Please enter an entity type.");
                                 return true;
@@ -852,7 +852,11 @@ class Main extends PluginBase implements Listener
         foreach($this->getServer()->getLevels() as $level){
             foreach($level->getEntities() as $entity){
                 if($entity instanceof SlapperWorldCounter && ($event->getTarget()->getFolderName() === $entity->namedtag->WorldName->getValue() || $event->getOrigin()->getFolderName() === $entity->namedtag->WorldName->getValue())){
-                    $count = count($level->getPlayers());
+                    if($event->getTarget()->getFolderName() === $entity->namedtag->WorldName->getValue()){
+						$count = count($event->getTarget()->getPlayers()) + 1;
+					}else{
+						$count = count($event->getOrigin()->getPlayers()) - 1;
+					}
                     foreach($entity->hasSpawned as $spawned){
                         $entity->addPlayerCountText($spawned, TextFormat::YELLOW . $count . ' players');
                     }
