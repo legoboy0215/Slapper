@@ -8,6 +8,25 @@ use pocketmine\Player;
 
 class SlapperWorldCounter extends Human {
 
+	/** @var FloatingTextParticle */
+    public $ftp = null;
+	
+    public function addPlayerCountText(Player $player, string $text){
+        if($this->ftp === null){
+            $this->ftp = new FloatingTextParticle($this->subtract(0, 1), '', $text);
+        }else{
+            $this->ftp->setTitle($text);
+        }
+        $ftpPacket = $this->ftp->encode();
+        if(is_array($ftpPacket)){
+            foreach($ftpPacket as $ftpP){
+                $player->dataPacket($ftpP);
+            }
+        }else{
+            $player->dataPacket($ftpPacket);
+        }
+    }
+	
     public function spawnTo(Player $player)
     {
         if ($player !== $this and !isset($this->hasSpawned[$player->getLoaderId()])) {
@@ -47,6 +66,21 @@ class SlapperWorldCounter extends Human {
                 $remove->entries[] = [$uuid];
                 $player->dataPacket($remove);
             }
+        }
+    }
+	
+	public function despawnFrom(Player $player){
+        if(isset($this->hasSpawned[$player->getLoaderId()])){
+            $pk = new RemoveEntityPacket();
+            $pk->eid = $this->getId();
+            $player->dataPacket($pk);
+            unset($this->hasSpawned[$player->getLoaderId()]);
+            //TODO: Remove FloatingTextParticle removal hack
+            $rp = new \ReflectionProperty(FloatingTextParticle::class, 'entityId');
+            $rp->setAccessible(true);
+            $pk1 = new RemoveEntityPacket();
+            $pk1->eid = $rp->getValue($this->ftp);
+            $player->dataPacket($pk1);
         }
     }
 }
