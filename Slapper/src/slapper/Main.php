@@ -28,6 +28,8 @@ use pocketmine\Player;
 
 use pocketmine\plugin\PluginBase;
 
+use pocketmine\level\Level;
+
 use pocketmine\utils\TextFormat;
 
 use slapper\entities\other\SlapperBoat;
@@ -68,6 +70,7 @@ use slapper\entities\SlapperMule;
 use slapper\entities\SlapperSkeletonHorse;
 use slapper\entities\SlapperZombieHorse;
 use slapper\entities\SlapperWitch;
+use slapper\entities\SlapperWorldCounter;
 use slapper\entities\SlapperStray;
 use slapper\entities\SlapperHusk;
 use slapper\entities\SlapperWitherSkeleton;
@@ -133,6 +136,7 @@ class Main extends PluginBase implements Listener
         Entity::registerEntity(SlapperSpider::class, true);
         Entity::registerEntity(SlapperPig::class, true);
         Entity::registerEntity(SlapperMushroomCow::class, true);
+        Entity::registerEntity(SlapperWorldCounter::class, true);
         Entity::registerEntity(SlapperWolf::class, true);
         Entity::registerEntity(SlapperLavaSlime::class, true);
         Entity::registerEntity(SlapperSilverfish::class, true);
@@ -631,7 +635,8 @@ class Main extends PluginBase implements Listener
                                     "VillagerGolem",
                                     "SnowGolem",
                                     "Snowman",
-                                    "MagmaCube"
+                                    "MagmaCube",
+                                    "WorldCounter"
                                 ] as $entityType) {
                                 if (strtolower($type) === strtolower($entityType)) {
                                     $theOne = $entityType;
@@ -680,6 +685,7 @@ class Main extends PluginBase implements Listener
                                 case "Stray":
                                 case "WitherSkeleton":
                                 case "Rabbit":
+                                case "WorldCounter":
                                     $typeToUse = 'Slapper' . $theOne;
                                     break;
                                 case "FallingSand":
@@ -700,7 +706,20 @@ class Main extends PluginBase implements Listener
                                     $typeToUse = "SlapperLavaSlime";
                                     break;
                             }
-                            if ($typeToUse !== "Nothing" && $theOne !== "Blank") {
+                            if($typeToUse === "SlapperWorldCounter"){
+                                $worldName = array_shift($args);
+                                $realWorldName = TextFormat::clean($worldName);
+                                $this->getServer()->loadLevel($realWorldName);
+                                $level = $this->getServer()->getLevelByName($realWorldName);
+                                if($level instanceof Level){
+                                    $nbt = $this->makeNBT($typeToUse, $sender->getSkinData(), $sender->getSkinId(), "$worldName player count", $inventory, $sender->getYaw(), $sender->getPitch(), $playerX, $playerY, $playerZ, $realWorldName);
+                                    $slapperEntity = Entity::createEntity($typeToUse, $sender->getLevel()->getChunk($playerX >> 4, $playerZ >> 4), $nbt);
+                                    $sender->sendMessage($this->prefix . $theOne . " entity spawned with name " . TextFormat::WHITE . "\"" . TextFormat::BLUE . $name . TextFormat::WHITE . "\"" . TextFormat::GREEN . " and entity ID " . TextFormat::BLUE . $slapperEntity->getId());
+                                }else{
+                                    $sender->sendMessage($this->prefix . "The world '$realWorldName' doesn't exist!");
+                                    return;
+                                }
+                            }elseif ($typeToUse !== "Nothing" && $theOne !== "Blank") {
                                 $nbt = $this->makeNBT($typeToUse, $sender->getSkinData(), $sender->getSkinId(), $name, $inventory, $sender->getYaw(), $sender->getPitch(), $playerX, $playerY, $playerZ);
                                 $slapperEntity = Entity::createEntity($typeToUse, $sender->getLevel()->getChunk($playerX >> 4, $playerZ >> 4), $nbt);
                                 $sender->sendMessage($this->prefix . $theOne . " entity spawned with name " . TextFormat::WHITE . "\"" . TextFormat::BLUE . $name . TextFormat::WHITE . "\"" . TextFormat::GREEN . " and entity ID " . TextFormat::BLUE . $slapperEntity->getId());
@@ -736,7 +755,7 @@ class Main extends PluginBase implements Listener
         return true;
     }
 
-    private function makeNBT($type, $skin, $skinId, $name, $inv, $yaw, $pitch, $x, $y, $z)
+    private function makeNBT($type, $skin, $skinId, $name, $inv, $yaw, $pitch, $x, $y, $z, $counterWorld = null)
     {
         $nbt = new CompoundTag;
         $nbt->Pos = new ListTag("Pos", [
@@ -761,6 +780,9 @@ class Main extends PluginBase implements Listener
                 break;
             case "SlapperFallingSand":
                 $nbt->BlockID = new IntTag("BlockID", 1);
+                break;
+            case "SlapperWorldCounter":
+                $nbt->WorldName = new StringTag("WorldName", $counterWorld);
                 break;
         }
         return $nbt;
@@ -822,6 +844,19 @@ class Main extends PluginBase implements Listener
             $clearLagg = $this->getServer()->getPluginManager()->getPlugin("ClearLagg");
             if ($clearLagg !== null) {
                 $clearLagg->exemptEntity($entity);
+            }
+        }
+    }
+    
+    public function onChangeLevel(\pocketmine\event\entity\EntityLevelChangeEvent $event){
+        foreach($this->getServer()->getLevels() as $level){
+            foreach($level->getEntities() as $entity){
+                if($entity instanceof SlapperWorldCounter && ($event->getTarget()->getFolderName() === $entity->namedtag->WorldName->getValue() || $event->getOrigin()->getFolderName() === $entity->namedtag->WorldName->getValue())){
+                    $count = count($level->getPlayers());
+                    foreach($entity->hasSpawned as $spawned){
+                        $entity->addPlayerCountText($spawned, TextFormat::YELLOW . $count . ' players');
+                    }
+                }
             }
         }
     }
