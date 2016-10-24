@@ -8,6 +8,8 @@ use pocketmine\Player;
 
 class SlapperWorldCounter extends Human {
 
+	public $hasSpawned = [];
+
 	/** @var FloatingTextParticle */
     public $ftp = null;
 	
